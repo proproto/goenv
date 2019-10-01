@@ -20,7 +20,8 @@ jobs:
           --format=short-verbose
           --junitfile=<< parameters.test_results >>/goenv/result.xml
           --
-          -coverprofile=<< parameters.coverage_path >>/cover.out
+          -coverprofile=c.out
+      - run: go tool cover -html=c.out -o << parameters.coverage_path>>/coverage.html
       - store_test_results:
           path: << parameters.test_results >>
       - store_artifacts:
