@@ -15,7 +15,7 @@ jobs:
       - checkout
       - run: mkdir -p << parameters.test_results >>/goenv
       - run: mkdir -p << parameters.coverage_path >>
-      - run: |
+      - run: >
           gotestsum
           -coverprofile << parameters.coverage_path >>/cover.out
           --format short-verbose
