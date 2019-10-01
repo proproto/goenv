@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -34,34 +35,36 @@ func Parse(dst interface{}) error {
 
 	err := ParseErrors{}
 
-	for i, n := 0, ele.NumField(); i < n; i++ {
-		f := ele.Field(i)
+	for i, n := 0, structElem.NumField(); i < n; i++ {
+		f := structElem.Field(i)
 		v, ok := f.Tag.Lookup("env")
 		if ok {
 			values := strings.Split(v, ",")
-			if len(values) == 0 {
-				err.Append("goenv: env tag has empty value")
-				return err
+			if len(values) == 0 || values[0] == "" {
+				panic(fmt.Sprintf("goenv: field %s has empty env tag", f.Name))
 			}
+			setting := buildParseSetting(values)
 
-			envKey := values[0]
-			isRequired := contains(values, "required")
-			if isRequired {
-				envValue, ok := os.LookupEnv(envKey)
+			if setting.required {
+				envValue, ok := os.LookupEnv(setting.envKey)
 				if !ok {
-					if v, ok := containsValue(values, "default"); ok {
-						value.Field(i).SetString(v)
+					if setting.hasDefaultValue {
+						value.Field(i).SetString(setting.defaultValue)
 					} else {
-						err.Append(fmt.Sprintf("goenv: %s not set", envKey))
+						err.Append(fmt.Sprintf("goenv: %s not set", setting.envKey))
 					}
-				}
-				value.Field(i).SetString(envValue)
-			} else {
-				envValue := os.Getenv(envKey)
-				if v, ok := containsValue(values, "default"); ok {
-					value.Field(i).SetString(v)
 				} else {
-					value.Field(i).SetString(envValue)
+					setting.envValueRaw = envValue
+					setValue(value.Field(i), setting, &err)
+				}
+			} else {
+				setting.envValueRaw = os.Getenv(setting.envKey)
+				if setting.envValueRaw == "" {
+					if setting.hasDefaultValue {
+						value.Field(i).SetString(setting.defaultValue)
+					}
+				} else {
+					setValue(value.Field(i), setting, &err)
 				}
 			}
 		}
@@ -71,6 +74,64 @@ func Parse(dst interface{}) error {
 		return nil
 	}
 	return err
+}
+
+type parseSetting struct {
+	envKey          string
+	envValueRaw     string
+	required        bool
+	hasDefaultValue bool
+	defaultValue    string
+}
+
+func buildParseSetting(values []string) *parseSetting {
+	setting := parseSetting{
+		envKey: values[0],
+	}
+
+	for _, value := range values[1:] {
+		if value == "required" {
+			setting.required = true
+		} else if strings.HasPrefix(value, "default=") {
+			setting.hasDefaultValue = true
+			setting.defaultValue = strings.TrimPrefix(value, "default=")
+		} else {
+			panic("goenv: unknown method: " + value)
+		}
+	}
+
+	return &setting
+}
+
+func setValue(v reflect.Value, setting *parseSetting, err *ParseErrors) {
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString(setting.envValueRaw)
+	case reflect.Bool:
+		b, e := strconv.ParseBool(setting.envValueRaw)
+		if e != nil {
+			err.Append(e.Error())
+		} else {
+			v.SetBool(b)
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		integer, e := strconv.ParseInt(setting.envValueRaw, 10, 64)
+		if e != nil {
+			err.Append(e.Error())
+		} else {
+			v.SetInt(integer)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		integer, e := strconv.ParseUint(setting.envValueRaw, 10, 64)
+		if e != nil {
+			err.Append(e.Error())
+		} else {
+			v.SetUint(integer)
+		}
+	default:
+		panic("cannot handle kind: " + v.Kind().String())
+	}
+
 }
 
 func MustParse(i interface{}) {
