@@ -1,0 +1,22 @@
+version: 2.1
+
+jobs:
+  test:
+    parameters:
+      test_results:
+        type: string
+        default: /tmp/test-results
+    docker:
+      - image: circleci/golang
+    steps:
+      - checkout
+      - run: mkdir -p << parameters.test_results >>/goenv
+      - run: gotestsum -f short-verbose --junitfile << parameters.test_results >>/goenv/result.xml
+      - store_test_results:
+          path: /tmp/test-results
+
+workflows:
+  version: 2.1
+  test:
+    jobs:
+      - test
