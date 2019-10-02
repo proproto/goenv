@@ -104,34 +104,48 @@ func buildBindSetting(values []string) *bindSetting {
 	return &setting
 }
 
-var kindDuration = reflect.ValueOf(time.Duration(1)).Kind()
+var (
+	typeBool     = reflect.TypeOf((*bool)(nil)).Elem()
+	typeDuration = reflect.TypeOf((*time.Duration)(nil)).Elem()
+	typeInt      = reflect.TypeOf((*int)(nil)).Elem()
+	typeInt8     = reflect.TypeOf((*int8)(nil)).Elem()
+	typeInt16    = reflect.TypeOf((*int16)(nil)).Elem()
+	typeInt32    = reflect.TypeOf((*int32)(nil)).Elem()
+	typeInt64    = reflect.TypeOf((*int64)(nil)).Elem()
+	typeString   = reflect.TypeOf((*string)(nil)).Elem()
+	typeUint     = reflect.TypeOf((*uint)(nil)).Elem()
+	typeUint8    = reflect.TypeOf((*uint8)(nil)).Elem()
+	typeUint16   = reflect.TypeOf((*uint16)(nil)).Elem()
+	typeUint32   = reflect.TypeOf((*uint32)(nil)).Elem()
+	typeUint64   = reflect.TypeOf((*uint64)(nil)).Elem()
+)
 
 func setValue(v reflect.Value, stringValue string, err *BindErrors) {
-	switch v.Kind() {
-	case reflect.String:
+	switch v.Type() {
+	case typeString:
 		v.SetString(stringValue)
-	case reflect.Bool:
+	case typeBool:
 		b, e := strconv.ParseBool(stringValue)
 		if e != nil {
 			err.Append(e.Error())
 		} else {
 			v.SetBool(b)
 		}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case typeInt, typeInt8, typeInt16, typeInt32, typeInt64:
 		integer, e := strconv.ParseInt(stringValue, 10, 64)
 		if e != nil {
 			err.Append(e.Error())
 		} else {
 			v.SetInt(integer)
 		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case typeUint, typeUint8, typeUint16, typeUint32, typeUint64:
 		integer, e := strconv.ParseUint(stringValue, 10, 64)
 		if e != nil {
 			err.Append(e.Error())
 		} else {
 			v.SetUint(integer)
 		}
-	case kindDuration:
+	case typeDuration:
 		d, e := time.ParseDuration(stringValue)
 		if e != nil {
 			err.Append(e.Error())
@@ -139,9 +153,8 @@ func setValue(v reflect.Value, stringValue string, err *BindErrors) {
 			v.Set(reflect.ValueOf(d))
 		}
 	default:
-		panic("cannot handle kind: " + v.Kind().String())
+		panic("goenv: unsupported bind type: " + v.Type().String())
 	}
-
 }
 
 func MustBind(i interface{}) {
