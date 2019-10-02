@@ -39,6 +39,11 @@ func Parse(dst interface{}) error {
 		f := structElem.Field(i)
 		v, ok := f.Tag.Lookup("env")
 		if ok {
+			it := NewOptsIterator(v)
+			for it.Next() {
+				fmt.Printf("name: %s, value: %s\n", it.Name(), it.Value())
+			}
+
 			values := strings.Split(v, ",")
 			if len(values) == 0 || values[0] == "" {
 				panic(fmt.Sprintf("goenv: field %s has empty env tag", f.Name))
