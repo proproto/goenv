@@ -7,7 +7,7 @@ import (
 )
 
 func TestIterator(t *testing.T) {
-	itr := NewOptsIterator("ENV_KEY,required,default=ENV_VALUE")
+	itr := newOptsIterator("required,default=ENV_VALUE")
 
 	assert.True(t, itr.Next())
 	assert.Equal(t, "required", itr.Name())

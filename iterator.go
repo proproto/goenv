@@ -1,21 +1,42 @@
 package goenv
 
-import "strings"
+import (
+	"strings"
+)
 
 type optsIterator struct {
-	opts       string
-	current    string
-	begin, end int
+	isBegin bool
+	opts    string
+	current string
+	end     int
 }
 
-func NewOptsIterator(opts string) *optsIterator {
-	return &optsIterator{
+func newOptsIterator(opts string) *optsIterator {
+	it := &optsIterator{
 		opts: opts,
+		end:  -1,
 	}
+
+	return it
 }
 
 func (it *optsIterator) Next() bool {
-	return false
+	if it.isBegin && (it.end == -1 || it.end+1 >= len(it.opts)) {
+		return false
+	}
+
+	it.isBegin = true
+
+	it.opts = it.opts[it.end+1:]
+	if idx := strings.IndexByte(it.opts, ','); idx != -1 { // has multiple options
+		it.current = it.opts[:idx]
+		it.end = idx
+	} else { // single option
+		it.current = it.opts
+		it.end = len(it.opts)
+	}
+
+	return true
 }
 
 func (it *optsIterator) Name() string {
@@ -23,7 +44,7 @@ func (it *optsIterator) Name() string {
 	if idx == -1 {
 		return it.current
 	}
-	return it.current[:idx+1]
+	return it.current[:idx]
 }
 
 func (it *optsIterator) Value() string {

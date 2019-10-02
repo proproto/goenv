@@ -48,11 +48,6 @@ func Bind(dst interface{}) error {
 		f := structElem.Field(i)
 		v, ok := f.Tag.Lookup("env")
 		if ok {
-			it := NewOptsIterator(v)
-			for it.Next() {
-				fmt.Printf("name: %s, value: %s\n", it.Name(), it.Value())
-			}
-
 			values := strings.Split(v, ",")
 			if len(values) == 0 || values[0] == "" {
 				panic(fmt.Sprintf("goenv: field %s has empty env tag", f.Name))
@@ -88,6 +83,13 @@ func Bind(dst interface{}) error {
 		return nil
 	}
 	return err
+}
+
+func parseTag(tag string) (string, *optsIterator) {
+	if idx := strings.Index(tag, ","); idx != -1 {
+		return tag[:idx], newOptsIterator(tag[idx+1:])
+	}
+	return tag, newOptsIterator("")
 }
 
 type bindSetting struct {
