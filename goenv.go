@@ -48,11 +48,10 @@ func Bind(dst interface{}) error {
 		f := structElem.Field(i)
 		v, ok := f.Tag.Lookup("env")
 		if ok {
-			values := strings.Split(v, ",")
-			if len(values) == 0 || values[0] == "" {
+			setting := buildBindSetting(v)
+			if v == "" {
 				panic(fmt.Sprintf("goenv: field %s has empty env tag", f.Name))
 			}
-			setting := buildBindSetting(values)
 
 			if setting.required {
 				envValue, ok := os.LookupEnv(setting.envKey)
@@ -100,22 +99,22 @@ type bindSetting struct {
 	defaultValue    string
 }
 
-func buildBindSetting(values []string) *bindSetting {
-	setting := bindSetting{
-		envKey: values[0],
-	}
+func buildBindSetting(v string) *bindSetting {
 
-	for _, value := range values[1:] {
-		if value == "required" {
+	envKey, opts := parseTag(v)
+	setting := bindSetting{envKey: envKey}
+
+	for opts.Next() {
+		switch opts.Name() {
+		case "required":
 			setting.required = true
-		} else if strings.HasPrefix(value, "default=") {
+		case "default":
 			setting.hasDefaultValue = true
-			setting.defaultValue = strings.TrimPrefix(value, "default=")
-		} else {
-			panic("goenv: unknown method: " + value)
+			setting.defaultValue = opts.Value()
+		default:
+			panic("goenv: unknown method: " + opts.Name())
 		}
 	}
-
 	return &setting
 }
 
