@@ -152,22 +152,81 @@ func TestBind_String(t *testing.T) {
 }
 
 func TestBind_Duration(t *testing.T) {
-	type ServerConfig struct {
-		Timeout time.Duration `env:"HTTP_TIMEOUT,default=10s"`
-	}
+	t.Run("NoOption", func(t *testing.T) {
+		type ServerConfig struct {
+			Timeout time.Duration `env:"HTTP_TIMEOUT"`
+		}
 
-	t.Run("default", func(t *testing.T) {
-		config := &ServerConfig{}
-		err := Bind(config)
-		assert.NoError(t, err)
-		assert.Equal(t, 10*time.Second, config.Timeout)
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, time.Duration(0), config.Timeout)
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("HTTP_TIMEOUT", "30s")
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 30*time.Second, config.Timeout)
+		})
+
+		t.Run("InvalidDuration", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("HTTP_TIMEOUT", "nat")
+			config := &ServerConfig{}
+			err := Bind(config)
+			_, expectErr := time.ParseDuration("nat")
+			assert.EqualError(t, expectErr, err.Error())
+		})
 	})
 
-	t.Run("explicit", func(t *testing.T) {
-		os.Setenv("HTTP_TIMEOUT", "30s")
-		config := &ServerConfig{}
-		err := Bind(config)
-		assert.NoError(t, err)
-		assert.Equal(t, 30*time.Second, config.Timeout)
+	t.Run("WithDefault", func(t *testing.T) {
+		type ServerConfig struct {
+			Timeout time.Duration `env:"HTTP_TIMEOUT,default=10s"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 10*time.Second, config.Timeout)
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("HTTP_TIMEOUT", "30s")
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 30*time.Second, config.Timeout)
+		})
 	})
+
+	t.Run("WithRequired", func(t *testing.T) {
+		type ServerConfig struct {
+			Timeout time.Duration `env:"HTTP_TIMEOUT,required"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.EqualError(t, fmt.Errorf("goenv: %s not set", "HTTP_TIMEOUT"), err.Error())
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("HTTP_TIMEOUT", "30s")
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 30*time.Second, config.Timeout)
+		})
+	})
+
 }
