@@ -50,7 +50,7 @@ func Bind(dst interface{}) error {
 				envValue, ok := os.LookupEnv(setting.envKey)
 				if !ok {
 					if setting.hasDefaultValue {
-						value.Field(i).SetString(setting.defaultValue)
+						setValue(value.Field(i), setting.defaultValue, &err)
 					} else {
 						err.Append(fmt.Sprintf("goenv: %s not set", setting.envKey))
 					}
@@ -62,7 +62,7 @@ func Bind(dst interface{}) error {
 				setting.envValueRaw = os.Getenv(setting.envKey)
 				if setting.envValueRaw == "" {
 					if setting.hasDefaultValue {
-						value.Field(i).SetString(setting.defaultValue)
+						setValue(value.Field(i), setting.defaultValue, &err)
 					}
 				} else {
 					setValue(value.Field(i), setting.envValueRaw, &err)
