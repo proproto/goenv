@@ -25,6 +25,14 @@ func (err bindErrors) String() string {
 	return err.Error()
 }
 
+// MustBind panics if Bind fails
+func MustBind(i interface{}) {
+	if err := Bind(i); err != nil {
+		panic(err)
+	}
+}
+
+// Bind binds environment variables to dst
 func Bind(dst interface{}) error {
 	t := reflect.TypeOf(dst)
 	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
@@ -154,11 +162,5 @@ func setValue(v reflect.Value, stringValue string, err *bindErrors) {
 		}
 	default:
 		panic("goenv: unsupported bind type: " + v.Type().String())
-	}
-}
-
-func MustBind(i interface{}) {
-	if err := Bind(i); err != nil {
-		panic(err)
 	}
 }
