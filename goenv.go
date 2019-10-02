@@ -56,7 +56,7 @@ func Bind(dst interface{}) error {
 					}
 				} else {
 					setting.envValueRaw = envValue
-					setValue(value.Field(i), setting, &err)
+					setValue(value.Field(i), setting.envValueRaw, &err)
 				}
 			} else {
 				setting.envValueRaw = os.Getenv(setting.envKey)
@@ -65,7 +65,7 @@ func Bind(dst interface{}) error {
 						value.Field(i).SetString(setting.defaultValue)
 					}
 				} else {
-					setValue(value.Field(i), setting, &err)
+					setValue(value.Field(i), setting.envValueRaw, &err)
 				}
 			}
 		}
@@ -104,35 +104,35 @@ func buildBindSetting(values []string) *bindSetting {
 	return &setting
 }
 
-var kindDuration = reflect.ValueOf(time.Duration(1)).Elem().Kind()
+var kindDuration = reflect.ValueOf(time.Duration(1)).Kind()
 
-func setValue(v reflect.Value, setting *bindSetting, err *BindErrors) {
+func setValue(v reflect.Value, stringValue string, err *BindErrors) {
 	switch v.Kind() {
 	case reflect.String:
-		v.SetString(setting.envValueRaw)
+		v.SetString(stringValue)
 	case reflect.Bool:
-		b, e := strconv.ParseBool(setting.envValueRaw)
+		b, e := strconv.ParseBool(stringValue)
 		if e != nil {
 			err.Append(e.Error())
 		} else {
 			v.SetBool(b)
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		integer, e := strconv.ParseInt(setting.envValueRaw, 10, 64)
+		integer, e := strconv.ParseInt(stringValue, 10, 64)
 		if e != nil {
 			err.Append(e.Error())
 		} else {
 			v.SetInt(integer)
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		integer, e := strconv.ParseUint(setting.envValueRaw, 10, 64)
+		integer, e := strconv.ParseUint(stringValue, 10, 64)
 		if e != nil {
 			err.Append(e.Error())
 		} else {
 			v.SetUint(integer)
 		}
 	case kindDuration:
-		d, e := time.ParseDuration(setting.envValueRaw)
+		d, e := time.ParseDuration(stringValue)
 		if e != nil {
 			err.Append(e.Error())
 		} else {
