@@ -26,8 +26,8 @@ func (err ParseErrors) String() string {
 
 func Parse(dst interface{}) error {
 	t := reflect.TypeOf(dst)
-	if t.Kind() != reflect.Ptr {
-		return fmt.Errorf("goenv: dst must be a pointer: %T", dst)
+	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("goenv: dst must be a pointer to struct: %T", dst)
 	}
 
 	structElem := t.Elem()
