@@ -18,7 +18,7 @@ func TestBind_Argument(t *testing.T) {
 	})
 }
 
-func TestEnvTag(t *testing.T) {
+func TestBind_Tag(t *testing.T) {
 	type emptyEnv struct {
 		Field string `env:""`
 	}
@@ -26,7 +26,7 @@ func TestEnvTag(t *testing.T) {
 	assert.PanicsWithValue(t, "goenv: field Field has empty env tag", func() { Bind(&emptyEnv{}) })
 }
 
-func TestEnvUnknownMethod(t *testing.T) {
+func TestBind_UnknownOption(t *testing.T) {
 	type unknown struct {
 		Field string `env:"ENV_KEY,unknown"`
 	}
@@ -34,7 +34,7 @@ func TestEnvUnknownMethod(t *testing.T) {
 	assert.PanicsWithValue(t, "goenv: unknown method: unknown", func() { Bind(&unknown{}) })
 }
 
-func TestBindDuration(t *testing.T) {
+func TestBind_Duration(t *testing.T) {
 	type ServerConfig struct {
 		Timeout time.Duration `env:"HTTP_TIMEOUT,default=10s"`
 	}
