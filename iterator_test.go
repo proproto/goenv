@@ -19,3 +19,8 @@ func TestIterator(t *testing.T) {
 
 	assert.False(t, itr.Next())
 }
+
+func TestIterator_EmptyOption(t *testing.T) {
+	itr := newOptsIterator("")
+	assert.False(t, itr.Next())
+}
