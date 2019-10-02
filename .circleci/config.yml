@@ -6,14 +6,26 @@ jobs:
       test_results:
         type: string
         default: /tmp/test-results
+      coverage_path:
+        type: string
+        default: /tmp/coverage
     docker:
       - image: circleci/golang
     steps:
       - checkout
       - run: mkdir -p << parameters.test_results >>/goenv
-      - run: gotestsum -f short-verbose --junitfile << parameters.test_results >>/goenv/result.xml
+      - run: mkdir -p << parameters.coverage_path >>
+      - run: >
+          gotestsum
+          --format=short-verbose
+          --junitfile=<< parameters.test_results >>/goenv/result.xml
+          --
+          -coverprofile=c.out
+      - run: go tool cover -html=c.out -o << parameters.coverage_path>>/coverage.html
       - store_test_results:
-          path: /tmp/test-results
+          path: << parameters.test_results >>
+      - store_artifacts:
+          path: << parameters.coverage_path >>
 
 workflows:
   version: 2.1

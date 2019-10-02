@@ -1,100 +1,311 @@
 package goenv
 
 import (
-	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestArg(t *testing.T) {
-	dst := struct{}{}
-	assert.EqualError(t, Parse(dst), fmt.Sprintf("goenv: dst must be a pointer: %T", dst))
+func TestBind_Argument(t *testing.T) {
+	t.Run("NonPointer", func(t *testing.T) {
+		assert.EqualError(t, Bind(struct{}{}), "goenv: dst must be a pointer to struct: struct {}")
+	})
+
+	t.Run("NonPointerToStruct", func(t *testing.T) {
+		assert.EqualError(t, Bind(""), "goenv: dst must be a pointer to struct: string")
+	})
 }
 
-func TestEnvTag(t *testing.T) {
+func TestBind_Tag(t *testing.T) {
 	type emptyEnv struct {
 		Field string `env:""`
 	}
 
-	assert.PanicsWithValue(t, "goenv: field Field has empty env tag", func() { Parse(&emptyEnv{}) })
+	assert.PanicsWithValue(t, "goenv: field Field has empty env tag", func() { Bind(&emptyEnv{}) })
 }
 
-func TestEnvUnknownMethod(t *testing.T) {
+func TestBind_UnknownOption(t *testing.T) {
 	type unknown struct {
 		Field string `env:"ENV_KEY,unknown"`
 	}
 
-	assert.PanicsWithValue(t, "goenv: unknown method: unknown", func() { Parse(&unknown{}) })
+	assert.PanicsWithValue(t, "goenv: unknown method: unknown", func() { Bind(&unknown{}) })
 }
 
-func TestParseMySQLConfig(t *testing.T) {
-	type MySQLConfig struct {
-		Host     string `env:"MYSQL_HOST,default=localhost:3306"`
-		User     string `env:"MYSQL_USER,default=root"`
-		Password string `env:"MYSQL_PASSWORD"`
-		Database string `env:"MYSQL_DATABASE,required"`
-		MaxConns int    `env:"MYSQL_MAX_CONNS"`
-		Ping     bool   `env:"MYSQL_AUTO_PING"`
-	}
+func TestBind_String(t *testing.T) {
+	t.Run("NoOption", func(t *testing.T) {
+		type Config struct {
+			Field string `env:"ENV_FIELD"`
+		}
+		cases := map[string]struct {
+			SetupFunc func()
+			Expect    Config
+		}{
+			"Implicitly": {
+				SetupFunc: func() {},
+			},
+			"Explicitly": {
+				SetupFunc: func() {
+					os.Setenv("ENV_FIELD", "set")
+				},
+				Expect: Config{
+					Field: "set",
+				},
+			},
+		}
 
-	cases := map[string]struct {
-		SetupFunc func()
-		Config    MySQLConfig
-		Error     error
-	}{
-		"Example1": {
-			SetupFunc: func() {
-				os.Setenv("MYSQL_PASSWORD", "rootpassword")
-				os.Setenv("MYSQL_DATABASE", "db")
-			},
-			Config: MySQLConfig{
-				Host:     "localhost:3306",
-				User:     "root",
-				Password: "rootpassword",
-				Database: "db",
-			},
-		},
-		"Example2": {
-			SetupFunc: func() {
-				os.Setenv("MYSQL_HOST", "http://10.42.8.63")
-				os.Setenv("MYSQL_USER", "admin")
-				os.Setenv("MYSQL_DATABASE", "service")
-				os.Setenv("MYSQL_MAX_CONNS", "100")
-				os.Setenv("MYSQL_AUTO_PING", "true")
-			},
-			Config: MySQLConfig{
-				Host:     "http://10.42.8.63",
-				User:     "admin",
-				Database: "service",
-				MaxConns: 100,
-				Ping:     true,
-			},
-		},
-		"Required": {
-			Error: errors.New("goenv: MYSQL_DATABASE not set"),
-		},
-	}
-
-	for testname, testcase := range cases {
-		t.Run(testname, func(t *testing.T) {
-			os.Clearenv()
-			if testcase.SetupFunc != nil {
+		for testname, testcase := range cases {
+			t.Run(testname, func(t *testing.T) {
+				os.Clearenv()
 				testcase.SetupFunc()
-			}
 
-			config := MySQLConfig{}
-			err := Parse(&config)
+				c := Config{}
 
-			if testcase.Error != nil {
-				assert.EqualError(t, testcase.Error, err.Error())
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, testcase.Config, config)
-				t.Logf("%s: %#v", testname, config)
-			}
+				assert.NoError(t, Bind(&c))
+				assert.Equal(t, testcase.Expect, c)
+			})
+		}
+	})
+
+	t.Run("WithDefault", func(t *testing.T) {
+		type Config struct {
+			Field string `env:"ENV_FIELD,default=value"`
+		}
+
+		cases := map[string]struct {
+			SetupFunc func()
+			Expect    Config
+		}{
+			"Implicitly": {
+				SetupFunc: func() {},
+				Expect: Config{
+					Field: "value",
+				},
+			},
+			"Explicitly": {
+				SetupFunc: func() {
+					os.Setenv("ENV_FIELD", "another")
+				},
+				Expect: Config{
+					Field: "another",
+				},
+			},
+		}
+
+		for testname, testcase := range cases {
+			t.Run(testname, func(t *testing.T) {
+				os.Clearenv()
+				testcase.SetupFunc()
+
+				c := Config{}
+
+				assert.NoError(t, Bind(&c))
+				assert.Equal(t, testcase.Expect, c)
+			})
+		}
+	})
+
+	t.Run("WithRequired", func(t *testing.T) {
+		type Config struct {
+			Field string `env:"ENV_FIELD,required"`
+		}
+
+		cases := map[string]struct {
+			SetupFunc func()
+			Expect    Config
+			Err       error
+		}{
+			"Implicitly": {
+				SetupFunc: func() {},
+				Err:       fmt.Errorf("goenv: %s not set", "ENV_FIELD"),
+			},
+			"Explicitly": {
+				SetupFunc: func() {
+					os.Setenv("ENV_FIELD", "ok")
+				},
+				Expect: Config{
+					Field: "ok",
+				},
+			},
+		}
+
+		for testname, testcase := range cases {
+			t.Run(testname, func(t *testing.T) {
+				os.Clearenv()
+				testcase.SetupFunc()
+
+				c := Config{}
+				err := Bind(&c)
+
+				if testcase.Err == nil {
+					assert.NoError(t, err)
+				} else {
+					assert.EqualError(t, testcase.Err, err.Error())
+				}
+				assert.Equal(t, testcase.Expect, c)
+			})
+		}
+	})
+}
+
+func TestBind_Int(t *testing.T) {
+	t.Run("NoOption", func(t *testing.T) {
+		type Config struct {
+			Int int `env:"ENV_INT"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 0, config.Int)
 		})
-	}
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("ENV_INT", "1024")
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 1024, config.Int)
+		})
+
+		t.Run("NaN", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("ENV_INT", "NaN")
+			config := &Config{}
+			err := Bind(config)
+			_, expectErr := strconv.ParseInt("NaN", 10, 64)
+			assert.EqualError(t, expectErr, err.Error())
+		})
+	})
+
+	t.Run("WithDefault", func(t *testing.T) {
+		type Config struct {
+			Int int `env:"ENV_INT,default=256"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 256, config.Int)
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("ENV_INT", "1024")
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 1024, config.Int)
+		})
+	})
+
+	t.Run("WithRequired", func(t *testing.T) {
+		type Config struct {
+			Int int `env:"ENV_INT,required"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &Config{}
+			err := Bind(config)
+			assert.EqualError(t, fmt.Errorf("goenv: %s not set", "ENV_INT"), err.Error())
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("ENV_INT", "1024")
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 1024, config.Int)
+		})
+	})
+}
+
+func TestBind_Duration(t *testing.T) {
+	t.Run("NoOption", func(t *testing.T) {
+		type ServerConfig struct {
+			Timeout time.Duration `env:"HTTP_TIMEOUT"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, time.Duration(0), config.Timeout)
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("HTTP_TIMEOUT", "30s")
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 30*time.Second, config.Timeout)
+		})
+
+		t.Run("InvalidDuration", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("HTTP_TIMEOUT", "nat")
+			config := &ServerConfig{}
+			err := Bind(config)
+			_, expectErr := time.ParseDuration("nat")
+			assert.EqualError(t, expectErr, err.Error())
+		})
+	})
+
+	t.Run("WithDefault", func(t *testing.T) {
+		type ServerConfig struct {
+			Timeout time.Duration `env:"HTTP_TIMEOUT,default=10s"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 10*time.Second, config.Timeout)
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("HTTP_TIMEOUT", "30s")
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 30*time.Second, config.Timeout)
+		})
+	})
+
+	t.Run("WithRequired", func(t *testing.T) {
+		type ServerConfig struct {
+			Timeout time.Duration `env:"HTTP_TIMEOUT,required"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.EqualError(t, fmt.Errorf("goenv: %s not set", "HTTP_TIMEOUT"), err.Error())
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("HTTP_TIMEOUT", "30s")
+			config := &ServerConfig{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 30*time.Second, config.Timeout)
+		})
+	})
 }
