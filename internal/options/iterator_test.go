@@ -1,13 +1,14 @@
-package goenv
+package options_test
 
 import (
 	"testing"
 
+	"github.com/proproto/goenv/internal/options"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIterator(t *testing.T) {
-	itr := newOptsIterator("required,default=ENV_VALUE")
+	itr := options.NewIterator("required,default=ENV_VALUE")
 
 	assert.True(t, itr.Next())
 	assert.Equal(t, "required", itr.Name())
@@ -21,6 +22,6 @@ func TestIterator(t *testing.T) {
 }
 
 func TestIterator_EmptyOption(t *testing.T) {
-	itr := newOptsIterator("")
+	itr := options.NewIterator("")
 	assert.False(t, itr.Next())
 }

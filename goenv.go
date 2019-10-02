@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/proproto/goenv/internal/options"
 )
 
 type bindErrors struct {
@@ -84,11 +86,11 @@ func Bind(dst interface{}) error {
 	return err
 }
 
-func parseTag(tag string) (string, *optsIterator) {
+func parseTag(tag string) (string, *options.Iterator) {
 	if idx := strings.Index(tag, ","); idx != -1 {
-		return tag[:idx], newOptsIterator(tag[idx+1:])
+		return tag[:idx], options.NewIterator(tag[idx+1:])
 	}
-	return tag, newOptsIterator("")
+	return tag, options.NewIterator("")
 }
 
 type bindSetting struct {

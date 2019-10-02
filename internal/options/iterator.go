@@ -1,19 +1,22 @@
-package goenv
+package options
 
 import (
 	"strings"
 )
 
-type optsIterator struct {
+// Iterator struct
+type Iterator struct {
 	opts    string
 	current string
 }
 
-func newOptsIterator(opts string) *optsIterator {
-	return &optsIterator{opts: opts}
+// NewIterator creates a new iterator
+func NewIterator(opts string) *Iterator {
+	return &Iterator{opts: opts}
 }
 
-func (it *optsIterator) Next() bool {
+// Next returns true if iterator has next value
+func (it *Iterator) Next() bool {
 	if (it.opts == "") || (it.current == it.opts) {
 		return false
 	}
@@ -28,14 +31,16 @@ func (it *optsIterator) Next() bool {
 	return true
 }
 
-func (it *optsIterator) Name() string {
+// Name returns current option name
+func (it *Iterator) Name() string {
 	if idx := strings.IndexByte(it.current, '='); idx >= 0 {
 		return it.current[:idx]
 	}
 	return it.current
 }
 
-func (it *optsIterator) Value() string {
+// Value returns current option value
+func (it *Iterator) Value() string {
 	if idx := strings.IndexByte(it.current, '='); idx >= 0 {
 		return it.current[idx+1:]
 	}
