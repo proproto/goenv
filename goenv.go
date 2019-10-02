@@ -86,13 +86,6 @@ func Bind(dst interface{}) error {
 	return err
 }
 
-func parseTag(tag string) (string, *options.Iterator) {
-	if idx := strings.Index(tag, ","); idx != -1 {
-		return tag[:idx], options.NewIterator(tag[idx+1:])
-	}
-	return tag, options.NewIterator("")
-}
-
 type bindSetting struct {
 	envKey          string
 	envValueRaw     string
@@ -102,7 +95,6 @@ type bindSetting struct {
 }
 
 func buildBindSetting(v string) *bindSetting {
-
 	envKey, opts := parseTag(v)
 	setting := bindSetting{envKey: envKey}
 
@@ -118,6 +110,13 @@ func buildBindSetting(v string) *bindSetting {
 		}
 	}
 	return &setting
+}
+
+func parseTag(tag string) (string, *options.Iterator) {
+	if idx := strings.Index(tag, ","); idx != -1 {
+		return tag[:idx], options.NewIterator(tag[idx+1:])
+	}
+	return tag, options.NewIterator("")
 }
 
 var (
