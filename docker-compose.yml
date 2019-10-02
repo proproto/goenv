@@ -1,0 +1,13 @@
+version: "3"
+
+services:
+  test:
+    image: golang:1.13
+    working_dir: /go/src/github.com/proproto/goenv 
+    volumes:
+      - gomod:/go/pkg/mod
+      - ./:/go/src/github.com/proproto/goenv
+    command: go test -cover -v
+
+volumes:
+  gomod: {}
