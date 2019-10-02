@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type ParseErrors struct {
@@ -103,6 +104,8 @@ func buildParseSetting(values []string) *parseSetting {
 	return &setting
 }
 
+var kindDuration = reflect.ValueOf(time.Duration(1)).Elem().Kind()
+
 func setValue(v reflect.Value, setting *parseSetting, err *ParseErrors) {
 	switch v.Kind() {
 	case reflect.String:
@@ -127,6 +130,13 @@ func setValue(v reflect.Value, setting *parseSetting, err *ParseErrors) {
 			err.Append(e.Error())
 		} else {
 			v.SetUint(integer)
+		}
+	case kindDuration:
+		d, e := time.ParseDuration(setting.envValueRaw)
+		if e != nil {
+			err.Append(e.Error())
+		} else {
+			v.Set(reflect.ValueOf(d))
 		}
 	default:
 		panic("cannot handle kind: " + v.Kind().String())

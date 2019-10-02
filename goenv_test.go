@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -32,6 +33,12 @@ func TestEnvUnknownMethod(t *testing.T) {
 	}
 
 	assert.PanicsWithValue(t, "goenv: unknown method: unknown", func() { Parse(&unknown{}) })
+}
+
+func TestBindDuration(t *testing.T) {
+	type T struct {
+		Timeout time.Duration `env:"HTTP_TIMEOUT,default=10s"`
+	}
 }
 
 func TestParseMySQLConfig(t *testing.T) {
