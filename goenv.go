@@ -9,19 +9,19 @@ import (
 	"time"
 )
 
-type BindErrors struct {
+type bindErrors struct {
 	msg []string
 }
 
-func (err *BindErrors) Append(msg string) {
+func (err *bindErrors) Append(msg string) {
 	err.msg = append(err.msg, msg)
 }
 
-func (err BindErrors) Error() string {
+func (err bindErrors) Error() string {
 	return strings.Join(err.msg, ", ")
 }
 
-func (err BindErrors) String() string {
+func (err bindErrors) String() string {
 	return err.Error()
 }
 
@@ -34,7 +34,7 @@ func Bind(dst interface{}) error {
 	structElem := t.Elem()
 	value := reflect.ValueOf(dst).Elem()
 
-	err := BindErrors{}
+	err := bindErrors{}
 
 	for i, n := 0, structElem.NumField(); i < n; i++ {
 		f := structElem.Field(i)
@@ -120,7 +120,7 @@ var (
 	typeUint64   = reflect.TypeOf((*uint64)(nil)).Elem()
 )
 
-func setValue(v reflect.Value, stringValue string, err *BindErrors) {
+func setValue(v reflect.Value, stringValue string, err *bindErrors) {
 	switch v.Type() {
 	case typeString:
 		v.SetString(stringValue)
