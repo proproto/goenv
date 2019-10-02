@@ -2,16 +2,20 @@ package goenv
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestArg(t *testing.T) {
-	dst := struct{}{}
-	assert.EqualError(t, Parse(dst), fmt.Sprintf("goenv: dst must be a pointer: %T", dst))
+func TestParse_Argument(t *testing.T) {
+	t.Run("non-pointer", func(t *testing.T) {
+		assert.EqualError(t, Parse(struct{}{}), "goenv: dst must be a pointer to struct: struct {}")
+	})
+
+	t.Run("non-pointer-to-struct", func(t *testing.T) {
+		assert.EqualError(t, Parse(""), "goenv: dst must be a pointer to struct: string")
+	})
 }
 
 func TestEnvTag(t *testing.T) {
