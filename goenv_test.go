@@ -3,6 +3,7 @@ package goenv
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -151,6 +152,85 @@ func TestBind_String(t *testing.T) {
 	})
 }
 
+func TestBind_Int(t *testing.T) {
+	t.Run("NoOption", func(t *testing.T) {
+		type Config struct {
+			Int int `env:"ENV_INT"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 0, config.Int)
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("ENV_INT", "1024")
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 1024, config.Int)
+		})
+
+		t.Run("NaN", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("ENV_INT", "NaN")
+			config := &Config{}
+			err := Bind(config)
+			_, expectErr := strconv.ParseInt("NaN", 10, 64)
+			assert.EqualError(t, expectErr, err.Error())
+		})
+	})
+
+	t.Run("WithDefault", func(t *testing.T) {
+		type Config struct {
+			Int int `env:"ENV_INT,default=256"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 256, config.Int)
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("ENV_INT", "1024")
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 1024, config.Int)
+		})
+	})
+
+	t.Run("WithRequired", func(t *testing.T) {
+		type Config struct {
+			Int int `env:"ENV_INT,required"`
+		}
+
+		t.Run("Implicitly", func(t *testing.T) {
+			os.Clearenv()
+			config := &Config{}
+			err := Bind(config)
+			assert.EqualError(t, fmt.Errorf("goenv: %s not set", "ENV_INT"), err.Error())
+		})
+
+		t.Run("Explicitly", func(t *testing.T) {
+			os.Clearenv()
+			os.Setenv("ENV_INT", "1024")
+			config := &Config{}
+			err := Bind(config)
+			assert.NoError(t, err)
+			assert.Equal(t, 1024, config.Int)
+		})
+	})
+}
+
 func TestBind_Duration(t *testing.T) {
 	t.Run("NoOption", func(t *testing.T) {
 		type ServerConfig struct {
@@ -228,5 +308,4 @@ func TestBind_Duration(t *testing.T) {
 			assert.Equal(t, 30*time.Second, config.Timeout)
 		})
 	})
-
 }
