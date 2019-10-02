@@ -8,6 +8,37 @@ import (
 	"github.com/proproto/goenv"
 )
 
+func ExampleBind() {
+	type config struct {
+		Host string `env:"HOST,required"`
+	}
+
+	os.Clearenv()
+	os.Setenv("HOST", "0.0.0.0")
+
+	c := config{}
+	err := goenv.Bind(&c)
+
+	fmt.Println("err:", err)
+	fmt.Println("Host:", c.Host)
+	// OUTPUT: err: <nil>
+	// Host: 0.0.0.0
+}
+
+func ExampleBind_error() {
+	type config struct {
+		Host string `env:"HOST,required"`
+	}
+
+	os.Clearenv()
+
+	c := config{}
+	err := goenv.Bind(&c)
+
+	fmt.Println(err)
+	// OUTPUT: goenv: HOST not set
+}
+
 func ExampleMustBind() {
 	type MySQLConfig struct {
 		Host     string        `env:"MYSQL_HOST,default=localhost:3306"`
@@ -36,7 +67,6 @@ func ExampleMustBind() {
 	fmt.Printf("Timeout: %v\n", config.Timeout.String())
 	fmt.Printf("TLS: %v\n", config.TLS)
 	fmt.Printf("MaxConns: %v\n", config.MaxConns)
-
 	// Output:
 	// Host: localhost:3306
 	// User: root
