@@ -9,23 +9,23 @@ import (
 	"time"
 )
 
-type ParseErrors struct {
+type BindErrors struct {
 	msg []string
 }
 
-func (err *ParseErrors) Append(msg string) {
+func (err *BindErrors) Append(msg string) {
 	err.msg = append(err.msg, msg)
 }
 
-func (err ParseErrors) Error() string {
+func (err BindErrors) Error() string {
 	return strings.Join(err.msg, ", ")
 }
 
-func (err ParseErrors) String() string {
+func (err BindErrors) String() string {
 	return err.Error()
 }
 
-func Parse(dst interface{}) error {
+func Bind(dst interface{}) error {
 	t := reflect.TypeOf(dst)
 	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("goenv: dst must be a pointer to struct: %T", dst)
@@ -34,7 +34,7 @@ func Parse(dst interface{}) error {
 	structElem := t.Elem()
 	value := reflect.ValueOf(dst).Elem()
 
-	err := ParseErrors{}
+	err := BindErrors{}
 
 	for i, n := 0, structElem.NumField(); i < n; i++ {
 		f := structElem.Field(i)
@@ -44,7 +44,7 @@ func Parse(dst interface{}) error {
 			if len(values) == 0 || values[0] == "" {
 				panic(fmt.Sprintf("goenv: field %s has empty env tag", f.Name))
 			}
-			setting := buildParseSetting(values)
+			setting := buildBindSetting(values)
 
 			if setting.required {
 				envValue, ok := os.LookupEnv(setting.envKey)
@@ -77,7 +77,7 @@ func Parse(dst interface{}) error {
 	return err
 }
 
-type parseSetting struct {
+type bindSetting struct {
 	envKey          string
 	envValueRaw     string
 	required        bool
@@ -85,8 +85,8 @@ type parseSetting struct {
 	defaultValue    string
 }
 
-func buildParseSetting(values []string) *parseSetting {
-	setting := parseSetting{
+func buildBindSetting(values []string) *bindSetting {
+	setting := bindSetting{
 		envKey: values[0],
 	}
 
@@ -106,7 +106,7 @@ func buildParseSetting(values []string) *parseSetting {
 
 var kindDuration = reflect.ValueOf(time.Duration(1)).Elem().Kind()
 
-func setValue(v reflect.Value, setting *parseSetting, err *ParseErrors) {
+func setValue(v reflect.Value, setting *bindSetting, err *BindErrors) {
 	switch v.Kind() {
 	case reflect.String:
 		v.SetString(setting.envValueRaw)
@@ -144,8 +144,8 @@ func setValue(v reflect.Value, setting *parseSetting, err *ParseErrors) {
 
 }
 
-func MustParse(i interface{}) {
-	if err := Parse(i); err != nil {
+func MustBind(i interface{}) {
+	if err := Bind(i); err != nil {
 		panic(err)
 	}
 }

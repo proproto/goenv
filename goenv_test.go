@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParse_Argument(t *testing.T) {
+func TestBind_Argument(t *testing.T) {
 	t.Run("non-pointer", func(t *testing.T) {
-		assert.EqualError(t, Parse(struct{}{}), "goenv: dst must be a pointer to struct: struct {}")
+		assert.EqualError(t, Bind(struct{}{}), "goenv: dst must be a pointer to struct: struct {}")
 	})
 
 	t.Run("non-pointer-to-struct", func(t *testing.T) {
-		assert.EqualError(t, Parse(""), "goenv: dst must be a pointer to struct: string")
+		assert.EqualError(t, Bind(""), "goenv: dst must be a pointer to struct: string")
 	})
 }
 
@@ -24,7 +24,7 @@ func TestEnvTag(t *testing.T) {
 		Field string `env:""`
 	}
 
-	assert.PanicsWithValue(t, "goenv: field Field has empty env tag", func() { Parse(&emptyEnv{}) })
+	assert.PanicsWithValue(t, "goenv: field Field has empty env tag", func() { Bind(&emptyEnv{}) })
 }
 
 func TestEnvUnknownMethod(t *testing.T) {
@@ -32,7 +32,7 @@ func TestEnvUnknownMethod(t *testing.T) {
 		Field string `env:"ENV_KEY,unknown"`
 	}
 
-	assert.PanicsWithValue(t, "goenv: unknown method: unknown", func() { Parse(&unknown{}) })
+	assert.PanicsWithValue(t, "goenv: unknown method: unknown", func() { Bind(&unknown{}) })
 }
 
 func TestBindDuration(t *testing.T) {
@@ -41,7 +41,7 @@ func TestBindDuration(t *testing.T) {
 	}
 }
 
-func TestParseMySQLConfig(t *testing.T) {
+func TestBindMySQLConfig(t *testing.T) {
 	type MySQLConfig struct {
 		Host     string `env:"MYSQL_HOST,default=localhost:3306"`
 		User     string `env:"MYSQL_USER,default=root"`
@@ -97,7 +97,7 @@ func TestParseMySQLConfig(t *testing.T) {
 			}
 
 			config := MySQLConfig{}
-			err := Parse(&config)
+			err := Bind(&config)
 
 			if testcase.Error != nil {
 				assert.EqualError(t, testcase.Error, err.Error())
