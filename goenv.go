@@ -27,15 +27,17 @@ func (err bindErrors) String() string {
 	return err.Error()
 }
 
-// MustBind panics if Bind fails
-func MustBind(i interface{}) {
-	if err := Bind(i); err != nil {
-		panic(err)
-	}
+// Binder struct
+type Binder struct {
+	// TagKey specifies the tag key while calling reflect.Field.Tag.Lookup(string)
+	TagKey string
 }
 
+// DefaultBinder uses `env` as TagKey
+var DefaultBinder = &Binder{TagKey: "env"}
+
 // Bind binds environment variables to dst
-func Bind(dst interface{}) error {
+func (b *Binder) Bind(dst interface{}) error {
 	t := reflect.TypeOf(dst)
 	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("goenv: dst must be a pointer to struct: %T", dst)
@@ -48,7 +50,7 @@ func Bind(dst interface{}) error {
 
 	for i, n := 0, structElem.NumField(); i < n; i++ {
 		f := structElem.Field(i)
-		v, ok := f.Tag.Lookup("env")
+		v, ok := f.Tag.Lookup(b.TagKey)
 		if ok {
 			setting := buildBindSetting(v)
 			if v == "" {
@@ -170,4 +172,17 @@ func setValue(v reflect.Value, stringValue string, err *bindErrors) {
 	default:
 		panic("goenv: unsupported bind type: " + v.Type().String())
 	}
+}
+
+// MustBind binds environment variables to dst by DefaultBinder
+// if fails, it would panic
+func MustBind(dst interface{}) {
+	if err := Bind(dst); err != nil {
+		panic(err)
+	}
+}
+
+// Bind binds environment variables to dst by DefaultBinder
+func Bind(dst interface{}) error {
+	return DefaultBinder.Bind(dst)
 }
