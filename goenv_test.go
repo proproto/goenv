@@ -20,12 +20,31 @@ func TestBind_Argument(t *testing.T) {
 	})
 }
 
-func TestBind_Tag(t *testing.T) {
-	type emptyEnv struct {
-		Field string `env:""`
-	}
+func TestBind_EmptyTag(t *testing.T) {
+	t.Run("Set", func(t *testing.T) {
+		type emptyEnv struct {
+			CamelCaseField string `env:""`
+		}
 
-	assert.PanicsWithValue(t, "goenv: field Field has empty env tag", func() { Bind(&emptyEnv{}) })
+		os.Clearenv()
+		os.Setenv("CAMEL_CASE_FIELD", "(｀･ω･´)")
+		c := emptyEnv{}
+
+		assert.NoError(t, Bind(&c))
+		assert.Equal(t, "(｀･ω･´)", c.CamelCaseField)
+	})
+
+	t.Run("NotSet", func(t *testing.T) {
+		type emptyEnv struct {
+			Field string `env:""`
+		}
+
+		os.Clearenv()
+		c := emptyEnv{}
+
+		assert.NoError(t, Bind(&c))
+		assert.Empty(t, c.Field)
+	})
 }
 
 func TestBind_UnknownOption(t *testing.T) {
