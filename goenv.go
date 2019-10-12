@@ -24,10 +24,6 @@ func (err bindErrors) Error() string {
 	return strings.Join(err.msg, ", ")
 }
 
-func (err bindErrors) String() string {
-	return err.Error()
-}
-
 // Binder struct
 type Binder struct {
 	// TagKey specifies the tag key while calling reflect.Field.Tag.Lookup(string)
