@@ -10,19 +10,31 @@ import (
 
 func ExampleBind() {
 	type config struct {
-		Host string `env:"HOST,required"`
+		Host         string        `env:"HOST,required"`
+		Skip         string        `env:"-"`
+		ReadTimeout  time.Duration `env:""`
+		WriteTimeout time.Duration
 	}
 
 	os.Clearenv()
 	os.Setenv("HOST", "0.0.0.0")
+	os.Setenv("SKIP", "SHOULD_NOT_PRESENT")
+	os.Setenv("READ_TIMEOUT", "1s")
+	os.Setenv("WRITE_TIMEOUT", "2s")
 
 	c := config{}
 	err := goenv.Bind(&c)
 
 	fmt.Println("err:", err)
 	fmt.Println("Host:", c.Host)
+	fmt.Printf("Skip: '%s'\n", c.Skip)
+	fmt.Println("ReadTimeout:", c.ReadTimeout.String())
+	fmt.Println("WriteTimeout:", c.WriteTimeout.String())
 	// OUTPUT: err: <nil>
 	// Host: 0.0.0.0
+	// Skip: ''
+	// ReadTimeout: 1s
+	// WriteTimeout: 2s
 }
 
 func ExampleBind_error() {

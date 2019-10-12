@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/proproto/camelcase"
 	"github.com/proproto/goenv/internal/options"
 )
 
@@ -21,10 +22,6 @@ func (err *bindErrors) Append(msg string) {
 
 func (err bindErrors) Error() string {
 	return strings.Join(err.msg, ", ")
-}
-
-func (err bindErrors) String() string {
-	return err.Error()
 }
 
 // Binder struct
@@ -50,34 +47,14 @@ func (b *Binder) Bind(dst interface{}) error {
 
 	for i, n := 0, structElem.NumField(); i < n; i++ {
 		f := structElem.Field(i)
-		v, ok := f.Tag.Lookup(b.TagKey)
-		if ok {
-			setting := buildBindSetting(v)
-			if v == "" {
-				panic(fmt.Sprintf("goenv: field %s has empty env tag", f.Name))
+		tag, ok := f.Tag.Lookup(b.TagKey)
+		if ok && tag != "" {
+			if handleErr := handleTagPresent(tag, i, f, value); handleErr != nil {
+				err.Append(handleErr.Error())
 			}
-
-			if setting.required {
-				envValue, ok := os.LookupEnv(setting.envKey)
-				if !ok {
-					if setting.hasDefaultValue {
-						setValue(value.Field(i), setting.defaultValue, &err)
-					} else {
-						err.Append(fmt.Sprintf("goenv: %s not set", setting.envKey))
-					}
-				} else {
-					setting.envValueRaw = envValue
-					setValue(value.Field(i), setting.envValueRaw, &err)
-				}
-			} else {
-				setting.envValueRaw = os.Getenv(setting.envKey)
-				if setting.envValueRaw == "" {
-					if setting.hasDefaultValue {
-						setValue(value.Field(i), setting.defaultValue, &err)
-					}
-				} else {
-					setValue(value.Field(i), setting.envValueRaw, &err)
-				}
+		} else {
+			if handleErr := handleTagNotPresent(i, f, value); handleErr != nil {
+				err.Append(handleErr.Error())
 			}
 		}
 	}
@@ -86,6 +63,56 @@ func (b *Binder) Bind(dst interface{}) error {
 		return nil
 	}
 	return err
+}
+
+func handleTagPresent(tag string, index int, sf reflect.StructField, value reflect.Value) error {
+	if tag == "-" {
+		return nil
+	}
+
+	setting := buildBindSetting(tag)
+
+	if setting.required {
+		envValue, ok := os.LookupEnv(setting.envKey)
+		if !ok {
+			if setting.hasDefaultValue {
+				if err := setValue(value.Field(index), setting.defaultValue); err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("goenv: %s not set", setting.envKey)
+			}
+		} else {
+			setting.envValueRaw = envValue
+			if err := setValue(value.Field(index), setting.envValueRaw); err != nil {
+				return err
+			}
+		}
+	} else {
+		setting.envValueRaw = os.Getenv(setting.envKey)
+		if setting.envValueRaw == "" {
+			if setting.hasDefaultValue {
+				if err := setValue(value.Field(index), setting.defaultValue); err != nil {
+					return err
+				}
+			}
+		} else {
+			if err := setValue(value.Field(index), setting.envValueRaw); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func handleTagNotPresent(index int, sf reflect.StructField, value reflect.Value) error {
+	envKey := camelcase.ToMacroCase(sf.Name)
+	if ev := os.Getenv(envKey); ev != "" {
+		return setValue(value.Field(index), ev)
+	}
+
+	return nil
 }
 
 type bindSetting struct {
@@ -137,41 +164,39 @@ var (
 	typeUint64   = reflect.TypeOf((*uint64)(nil)).Elem()
 )
 
-func setValue(v reflect.Value, stringValue string, err *bindErrors) {
+func setValue(v reflect.Value, stringValue string) error {
 	switch v.Type() {
 	case typeString:
 		v.SetString(stringValue)
 	case typeBool:
-		b, e := strconv.ParseBool(stringValue)
-		if e != nil {
-			err.Append(e.Error())
-		} else {
-			v.SetBool(b)
+		b, err := strconv.ParseBool(stringValue)
+		if err != nil {
+			return err
 		}
+		v.SetBool(b)
 	case typeInt, typeInt8, typeInt16, typeInt32, typeInt64:
-		integer, e := strconv.ParseInt(stringValue, 10, 64)
-		if e != nil {
-			err.Append(e.Error())
-		} else {
-			v.SetInt(integer)
+		i, err := strconv.ParseInt(stringValue, 10, 64)
+		if err != nil {
+			return err
 		}
+		v.SetInt(i)
 	case typeUint, typeUint8, typeUint16, typeUint32, typeUint64:
-		integer, e := strconv.ParseUint(stringValue, 10, 64)
-		if e != nil {
-			err.Append(e.Error())
-		} else {
-			v.SetUint(integer)
+		i, err := strconv.ParseUint(stringValue, 10, 64)
+		if err != nil {
+			return err
 		}
+		v.SetUint(i)
 	case typeDuration:
-		d, e := time.ParseDuration(stringValue)
-		if e != nil {
-			err.Append(e.Error())
-		} else {
-			v.Set(reflect.ValueOf(d))
+		d, err := time.ParseDuration(stringValue)
+		if err != nil {
+			return err
 		}
+		v.Set(reflect.ValueOf(d))
 	default:
-		panic("goenv: unsupported bind type: " + v.Type().String())
+		return fmt.Errorf("goenv: unsupported bind type: %s", v.Type())
 	}
+
+	return nil
 }
 
 // MustBind binds environment variables to dst by DefaultBinder
